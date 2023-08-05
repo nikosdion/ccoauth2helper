@@ -193,7 +193,7 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 		$data->refresh_token = $newData->refresh_token ?: $data->refresh_token ?? null;
 
 		$expiresIn = $newData->expires_in ?: 0;
-		$expiresIn = min(0, $expiresIn - 100);
+		$expiresIn = max(0, $expiresIn - 100);
 
 		if ($expiresIn > 0)
 		{
