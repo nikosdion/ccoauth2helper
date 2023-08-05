@@ -20,6 +20,8 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 {
 	use DatabaseAwareTrait;
 
+	protected $autoloadLanguage = true;
+
 	public static function getSubscribedEvents(): array
 	{
 		return [
@@ -58,7 +60,7 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 		 */
 		$uri = new Uri('https://authz.constantcontact.com/oauth2/default/v1/authorize');
 		$uri->setVar('client_id', $clientId);
-		$uri->setVar('redirect_uri', $this->getRedirectUrl());
+		$uri->setVar('redirect_uri', $this->getRedirectUrl(true));
 		$uri->setVar('response_type', 'code');
 		$uri->setVar('scope', 'account_read account_update contact_data offline_access campaign_data');
 		$uri->setVar('state', $randomState);
@@ -69,7 +71,7 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 		$event->setArgument('result', $result);
 	}
 
-	public function comAjaxHandler(Event $event): void
+    public function comAjaxHandler(Event $event): void
 	{
 		$input = $this->getApplication()->getInput();
 		$code  = $input->getRaw('code', '');
@@ -87,12 +89,11 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 		$clientId     = trim($this->params->get('client_id') ?? '');
 		$clientSecret = trim($this->params->get('client_secret') ?? '');
 
-		$postUrl  = 'https://authz.constantcontact.com/oauth2/default/v1/token';
-		$postData = [
-			'code'         => $code,
-			'redirect_uri' => $this->getRedirectUrl(),
-			'grant_type'   => 'authorization_code',
-		];
+        $postUri  = new Uri('https://authz.constantcontact.com/oauth2/default/v1/token');
+        $postUri->setVar('code', $code);
+        $postUri->setVar('redirect_uri', $this->getRedirectUrl(true));
+        $postUri->setVar('grant_type', 'authorization_code');
+
 		$headers  = [
 			'Accept'        => 'application/json',
 			'Content-Type'  => 'application/x-www-form-urlencoded',
@@ -101,11 +102,13 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 
 		$httpFactory = new HttpFactory();
 		$http        = $httpFactory->getHttp();
-		$result      = $http->post($postUrl, $postData, $headers);
+		$result      = $http->post($postUri->toString(), [], $headers);
 
 		if ($result->getStatusCode() !== 200)
 		{
-			throw new RuntimeException($result->getBody()->getContents(), $result->getStatusCode());
+			throw new RuntimeException(
+                sprintf('HTTP %d: %s', $result->getBody()->getContents(), $result->getStatusCode())
+            );
 		}
 
 		$this->handleReturnedJson($result->getBody()->getContents());
@@ -135,12 +138,9 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 			$clientId     = trim($this->params->get('client_id') ?? '');
 			$clientSecret = trim($this->params->get('client_secret') ?? '');
 
-			$postUrl  = 'https://authz.constantcontact.com/oauth2/default/v1/token';
-			$postData = [
-				'refresh_token' => $data->refresh_token ?? '',
-				'redirect_uri'  => $this->getRedirectUrl(),
-				'grant_type'    => 'refresh_token',
-			];
+			$postUri  = new Uri('https://authz.constantcontact.com/oauth2/default/v1/token');
+            $postUri->setVar('refresh_token', $data->refresh_token);
+            $postUri->setVar('grant_type', 'refresh_token');
 			$headers  = [
 				'Accept'        => 'application/json',
 				'Content-Type'  => 'application/x-www-form-urlencoded',
@@ -149,7 +149,7 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 
 			$httpFactory = new HttpFactory();
 			$http        = $httpFactory->getHttp();
-			$result      = $http->post($postUrl, $postData, $headers);
+			$result      = $http->post($postUri->toString(), [], $headers);
 
 			if ($result->getStatusCode() !== 200)
 			{
@@ -168,10 +168,17 @@ class CCOAuth2Helper extends CMSPlugin implements SubscriberInterface
 		$event->setArgument('result', $result);
 	}
 
-	private function getRedirectUrl(): string
+	private function getRedirectUrl(bool $urlEncode = true): string
 	{
-		return rtrim(\Joomla\CMS\Uri\Uri::root(false), '/')
-		       . '/index.php?option=com_ajax&group=system&plugin=ccoauth2helper&format=raw';
+        $url = rtrim(\Joomla\CMS\Uri\Uri::root(false), '/')
+            . '/index.php?option=com_ajax&group=system&plugin=ccoauth2helper&format=raw';
+
+        if ($urlEncode)
+        {
+            return urlencode($url);
+        }
+
+        return $url;
 	}
 
 	private function handleReturnedJson(string $json): void

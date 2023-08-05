@@ -31,7 +31,7 @@ return new class implements ServiceProviderInterface {
 			PluginInterface::class,
 			function (Container $container) {
 				$subject = $container->get(DispatcherInterface::class);
-				$config  = (array) PluginHelper::getPlugin('system', 'sociallogin');
+				$config  = (array) PluginHelper::getPlugin('system', 'ccoauth2helper');
 
 				$plugin = new CCOAuth2Helper($subject, $config);
 

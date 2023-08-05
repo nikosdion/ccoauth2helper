@@ -28,7 +28,7 @@
 
 	<config>
 		<fields name="params">
-			<fieldset name="basic">
+			<fieldset name="basic" addfieldprefix="Dionysopoulos\Plugin\System\CCOAuth2Helper\Field">
 				<field
 						name="client_id"
 						type="text"
@@ -42,6 +42,12 @@
 						label="PLG_SYSTEM_CCOAUTH2HELPER_CONFIG_CLIENT_SECRET_LABEL"
 						default=""
 				/>
+
+				<field
+					name="button1"
+					type="oauthlogin"
+					label="PLG_SYSTEM_CCOAUTH2HELPER_CONFIG_CONNECT_LABEL"
+					/>
 			</fieldset>
 		</fields>
 	</config>
